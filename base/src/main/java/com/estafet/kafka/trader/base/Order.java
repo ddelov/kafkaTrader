@@ -1,13 +1,24 @@
 package com.estafet.kafka.trader.base;
 
 import com.estafet.kafka.trader.base.json.OrderDeserializer;
+import com.estafet.kafka.trader.base.json.OrderSer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.security.InvalidParameterException;
 import java.util.Calendar;
 import java.util.Objects;
+import java.util.Properties;
+
+import static com.estafet.kafka.trader.base.Constants.TRADER_SERVERS;
+import static com.estafet.kafka.trader.base.json.OrderDeserializer.getOrder;
 
 /**
  * Created by Delcho Delov on 01.08.18.
@@ -16,6 +27,8 @@ import java.util.Objects;
 //@JsonSerialize(contentUsing= OrderSerializer.class)
 @JsonDeserialize(contentUsing= OrderDeserializer.class)
 public class Order implements Serializable {
+    private static Logger log = Logger.getLogger(Order.class);
+
     public final long id;
     public final long userId;
     public final String symbol;
@@ -113,4 +126,30 @@ public class Order implements Serializable {
                 ", parentOrderId=" + parentOrderId +
                 '}';
     }
+
+    public static String printHeader() {
+        final String summary = String.format("%20s |%20s |%6s |%10s |%8s |%15s |%10s |%20s","id", "userId", "symbol",
+                "operation", "quantity", "price", "orderType", "parentOrderId");
+        return summary;
+    }
+    public String printAsTable() {
+        final String summary = String.format("%20d |%20d |%6s |%10s |%8d |%15s |%10s |%20d",id, userId, symbol,
+                operation, quantity, price.setScale(5, BigDecimal.ROUND_HALF_UP).toString(), orderType, parentOrderId);
+        return summary;
+    }
+
+    public static void main(String[] args) throws IOException {
+        String log4jConfPath = "/home/ddelov/gitRepo/kafkaTest/base/src/main/resources/log4j.properties";
+        PropertyConfigurator.configure(log4jConfPath);
+
+        String json = "{\"id\":23170537000000103,\"userId\":23170537000000503,\"symbol\":\"AAPL\"," +
+                "\"operation\":\"SELL\",\"quantity\":156,\"price\":100.32508097890245,\"orderType\":\"Limit\"," +
+                "\"from\":1535033137272,\"orderValidity\":\"GTC\",\"validTo\":null,\"parentOrderId\":null}";
+        ObjectMapper mapper = new ObjectMapper();
+        final JsonNode node = mapper.readValue(json, JsonNode.class);
+        final Order order= getOrder(node);
+        log.info(printHeader());
+        log.info(order.printAsTable());
+    }
+
 }

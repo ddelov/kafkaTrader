@@ -1,23 +1,28 @@
 package com.estafet.kafka.trader.consumer;
 
 import com.estafet.kafka.trader.base.Order;
-import com.estafet.kafka.trader.base.UnmatchedRequests;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 import static com.estafet.kafka.trader.base.Constants.TOPIC_INCOMING_ORDERS;
 import static com.estafet.kafka.trader.base.Constants.TRADER_SERVERS;
+import static com.estafet.kafka.trader.base.Constants.getProducerProperties;
 import static com.estafet.kafka.trader.base.json.OrderDeserializer.getOrder;
 
 /**
@@ -25,17 +30,13 @@ import static com.estafet.kafka.trader.base.json.OrderDeserializer.getOrder;
  */
 public class OrderConsumer {
 
+    private static org.apache.log4j.Logger log = Logger.getLogger(OrderConsumer.class);
 
     public static void main(final String[] args) throws Exception {
-        String log4jConfPath = "/home/ddelov/gitRepo/kafkaTest/base/src/main/resources/log4j.properties";
+        String log4jConfPath = "/home/ddelov/gitRepo/kafkaTest/order-consumer/src/main/resources/log4j.properties";
         PropertyConfigurator.configure(log4jConfPath);
-
+        log.debug("consumer started");
         final Pattern compile = Pattern.compile(TOPIC_INCOMING_ORDERS + ".*");
-//        System.out.println("matcher.find() = " + compile.matcher("AAPL").find());
-//        for (String share : SHARES) {
-//            final java.util.regex.OrderConsumer matcher = compile.matcher(TOPIC_INCOMING_ORDERS + share);
-//            System.out.println("matcher.find() = " + matcher.find());
-//        }
 
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "sh-trader-application");
@@ -49,17 +50,34 @@ public class OrderConsumer {
 
         consumer.subscribe(compile);
 
-        UnmatchedRequests sortedS2 = new UnmatchedRequests();
+        UnmatchedRequests unmatched = new UnmatchedRequests();
         ObjectMapper mapper = new ObjectMapper();
-        while (true) {
+        //shutdown hook - put back unmatched records to kafka
+        AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            //TODO wait if/until unmatched processing is done
+            //put back unmatched records to kafka
+            shutdownRequested.set(true);
+            try (Producer<String, Order> producer = new KafkaProducer<>(getProducerProperties("consumer-unconsumed"));) {
+                for (Order order : unmatched.getUnmatchedRequests()) {
+                    producer.send(new ProducerRecord<String, Order>(TOPIC_INCOMING_ORDERS + order.symbol, order));
+                    producer.flush();
+                }
+            }
+            log.info("Consumer finished. Unmatched orders are back to Kafka");
+        }));
+        while (!shutdownRequested.get()) {
+            log.trace("Poll for incoming orders...");
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10l));
+            log.debug(records.count() > 0 ? "Found " + records.count() + " new records." : "No new records");
             for (ConsumerRecord<String, String> record : records) {
                 final JsonNode node = mapper.readValue(record.value(), JsonNode.class);
-                final Order order= getOrder(node);
-                sortedS2.add(order);
+                final Order order = getOrder(node);
+                unmatched.add(order);
             }
-            //start matching - sortedS2
-            sortedS2.startMatching();
+            log.trace("start matching..");
+            unmatched.startMatching();
+            log.trace("matching finished");
         }
     }
 }
