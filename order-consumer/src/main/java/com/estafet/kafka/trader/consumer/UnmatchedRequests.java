@@ -28,9 +28,9 @@ public class UnmatchedRequests {
         return getOrders(order.symbol).add(order);
     }
 
-    private SortedSet<Order> getOrders(final String symbol) {
+    SortedSet<Order> getOrders(final String symbol) {
         if (symbol == null || !Constants.SHARES_LIST.contains(symbol)) {
-            log.error("symbol is "+symbol);
+            log.error("symbol is " + symbol);
             throw new NullPointerException();
         }
         activeRequests.putIfAbsent(symbol, new TreeSet<Order>(new PriceComparator()));
@@ -45,27 +45,53 @@ public class UnmatchedRequests {
         return result;
     }
 
-    public void startMatching(){
-        final Iterator<String> iterator = modifiedSymbols.iterator();
-        while (iterator.hasNext()) {
-            final String symbol = iterator.next();
-            iterator.remove();
-            final OrderMatcher orderMatcher = new OrderMatcher(getOrders(symbol));
-            log.info("matching started for " + symbol);
-            final Integer deals = orderMatcher.proceed();
-            log.info("deals made :" + deals);
-            final String ordersTable = printOrdersTable(getOrders(symbol));
-            log.info(ordersTable);
-        }
-    }
+//    public void startMatching() {
+//        final Iterator<String> iterator = modifiedSymbols.iterator();
+//        while (iterator.hasNext()) {
+//            final String symbol = iterator.next();
+//            iterator.remove();
+//            final OrderMatcher orderMatcher = new OrderMatcher(getOrders(symbol));
+//            log.info("matching started for " + symbol);
+//            final Integer deals = orderMatcher.proceed();
+//            log.info("deals made :" + deals);
+//            final String ordersTable = printOrdersTable(getOrders(symbol));
+//            log.info(ordersTable);
+//        }
+//    }
 
-    private String printOrdersTable(SortedSet<Order> orders) {
+    public String printOrdersTable(/*SortedSet<Order> orders*/) {
         StringBuilder sb = new StringBuilder();
         sb.append('\n').append(Order.printHeader()).append('\n');
-        for (Order order : orders) {
-            sb.append(order.printAsTable()).append('\n');
+        for (String symbol : activeRequests.keySet()) {
+            for (Order order : getOrders(symbol)) {
+                sb.append(order.printAsTable()).append('\n');
+            }
         }
         return sb.toString();
     }
 
+//    public static void matchInTransaction(ConsumerRecord<String, String> record) throws IOException {
+//
+//        final Properties producerProperties = getProducerProperties("transaction-1-matcher");
+//        producerProperties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "transOne");//TODO transactional id
+//        KafkaProducer producer = new KafkaProducer(producerProperties);
+//        producer.initTransactions();
+//
+//        final ObjectMapper mapper = new ObjectMapper();
+//        final JsonNode node = mapper.readValue(record.value(), JsonNode.class);
+//        final Order order = getOrder(node);
+//        final OrderMatcher orderMatcher = new OrderMatcher(getOrders(order.symbol));
+//        {
+//            producer.beginTransaction();
+//            try {
+//                orderMatcher.match(order);
+//            } catch (OrderException ignore) {
+//                log.warn(ignore.getMessage());
+//            }
+////            FinishedDeal deal =null;//TODO
+//            //TODO commit record offset
+//            record. consumer.commitSync(Collections.singletonMap(partition, new OffsetAndMetadata(lastOffset + 1)));
+//            producer.commitTransaction();
+//        }
+//    }
 }
