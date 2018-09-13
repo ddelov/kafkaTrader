@@ -44,7 +44,7 @@ public class OrderConsumer {
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StringDeserializer.class);
+//        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StringDeserializer.class);
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
         final Pattern compile = Pattern.compile(TOPIC_INCOMING_ORDERS + ".*");
         consumer.subscribe(compile);
@@ -74,8 +74,9 @@ public class OrderConsumer {
             while (!shutdownRequested.get()) {
                 log.trace("Poll for incoming orders...");
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(POLL_EVERY_X_SECONDS));
-                log.debug(records.count() > 0 ? "Found " + records.count() +
-                        (records.count() == 1 ? " new record." : " new records.")
+                int count = records.count();
+                log.debug(count > 0 ? "Found " + count +
+                        (count == 1 ? " new record." : " new records.")
                         : "No new records");
 //                for (TopicPartition partition : records.partitions()) {
 //                    partition.equals()
@@ -86,6 +87,7 @@ public class OrderConsumer {
 //                    long lastOffset = partitionRecords.get(partitionRecords.size() - 1).offset();
 //                    consumer.commitSync(Collections.singletonMap(partition, new OffsetAndMetadata(lastOffset + 1)));
 //                }
+                final long startN = System.nanoTime();
                 for (ConsumerRecord<String, String> record : records) {
                     final Properties producerProperties = getProducerProperties("transaction-1-matcher");
                     producerProperties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "transOne");//TODO transactional id
@@ -98,21 +100,20 @@ public class OrderConsumer {
                     final OrderMatcher orderMatcher = new OrderMatcher(unmatched.getOrders(order.symbol));
                     {
                         producer.beginTransaction();
-                        final long startN = System.nanoTime();
                         try {
                             orderMatcher.match(order);
                         } catch (OrderException ignore) {
                             log.warn(ignore.getMessage());
                         }
-                        final long endN = System.nanoTime();
                         offsets.put(new TopicPartition(record.topic(), record.partition()),
                                 new OffsetAndMetadata(record.offset()+1));
                         consumer.commitSync(offsets);
                         producer.commitTransaction();
-                        log.debug(displayElapsedTime(endN-startN, "matching"));
                     }
 
                 }
+                final long endN = System.nanoTime();
+                log.debug(displayElapsedTime(endN-startN, "Processed "+ count + " records "));
             }
         }finally {
             consumer.close();

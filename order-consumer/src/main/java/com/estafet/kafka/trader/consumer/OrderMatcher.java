@@ -55,7 +55,7 @@ public class OrderMatcher {
     private Order findMinBuyer(BigDecimal price) {
         return orders.stream().filter((ord) -> ord.operation.equals(OrderOperation.BUY))
                 .filter((ord) -> ord.price.compareTo(price) >= 0)
-                .max(new PriceComparator()).orElse(null);
+                .min(new PriceComparator()).orElse(null);
     }
 
     private Order findMaxSeller(BigDecimal price) {

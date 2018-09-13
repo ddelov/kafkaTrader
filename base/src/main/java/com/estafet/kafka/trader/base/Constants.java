@@ -1,8 +1,10 @@
 package com.estafet.kafka.trader.base;
 
 import com.estafet.kafka.trader.base.json.OrderSer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -59,6 +61,19 @@ public final class Constants {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, OrderSer.class);//"org.apache.kafka.common.serialization
         props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "com.estafet.kafka.trader.base.TradeOperationPartitioner");
 
+        return props;
+    }
+    public static Properties getConsumerProperties(String groupId){
+        final Properties props = new Properties();
+//        props.put(ConsumerConfig.APPLICATION_ID_CONFIG, "sh-trader-application");
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, TRADER_SERVERS);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StringDeserializer.class);
         return props;
     }
 
