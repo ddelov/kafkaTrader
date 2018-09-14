@@ -65,6 +65,16 @@ public final class Constants {
     }
     public static Properties getConsumerProperties(String groupId){
         final Properties props = new Properties();
+
+//        props.put(StreamsConfig.APPLICATION_ID_CONFIG, Thread.currentThread().getName() + transIdSeq.getAndIncrement());
+//        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, TRADER_SERVERS);
+//        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+//        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+//        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+//        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+//        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+//        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+//
 //        props.put(ConsumerConfig.APPLICATION_ID_CONFIG, "sh-trader-application");
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, TRADER_SERVERS);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -73,7 +83,7 @@ public final class Constants {
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StringDeserializer.class);
+//        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "com.estafet.kafka.trader.consumer.OrderOperationAssignor");
         return props;
     }
 

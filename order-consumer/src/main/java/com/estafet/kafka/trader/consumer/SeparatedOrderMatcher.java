@@ -19,33 +19,62 @@ import static com.estafet.kafka.trader.base.Constants.getOrderId;
  */
 public class SeparatedOrderMatcher {
     private final PriceComparator priceComparator = new PriceComparator();
-    private final SortedSet<Order> buyOrders = new TreeSet<>(priceComparator);
-    private final SortedSet<Order> sellOrders = new TreeSet<>(priceComparator);
+    private final SortedSet<Order> buyOrders = new ConcurrentSkipListSet<>(priceComparator);
+    private final SortedSet<Order> sellOrders = new ConcurrentSkipListSet<>(priceComparator);
     private static Logger log = LogManager.getLogger(SeparatedOrderMatcher.class);
-    private final List<Future> activeTasks = new CopyOnWriteArrayList<>();//TODO add periodic cleaner for completed matches
+    private final List<Future> activeTasks = new CopyOnWriteArrayList<>();//TODO add periodic cleaner for completed
+    // matches
     private final ExecutorService executorService = Executors.newWorkStealingPool();
+//    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    private final Runnable cleaner = new Runnable() {
-        @Override
-        public void run() {
-            Iterator<Future> iterator = activeTasks.iterator();
-            while (iterator.hasNext()) {
-                if (iterator.next().isDone()) {
-                    iterator.remove();
-                }
-            }
-        }
-    };
+//    private final Runnable cleaner = new Runnable() {
+//        @Override
+//        public void run() {
+//            Iterator<Future> iterator = activeTasks.iterator();
+//            log.debug("run match cleaner over "+activeTasks.size());
+//            while (iterator.hasNext()) {
+//                if (iterator.next().isDone()) {
+//                    iterator.remove();
+//                    log.debug("1 task finished");
+//                }
+//            }
+//        }
+//    };
+
+    public SeparatedOrderMatcher() {
+//        scheduler.scheduleAtFixedRate(cleaner, 0, 5, TimeUnit.SECONDS);
+    }
 
     public void add(Order order) {
         activeTasks.add(executorService.submit(() -> match(order)));
     }
 
+    public void awaitTermination() throws InterruptedException, TimeoutException, ExecutionException {
+        log.debug(" await termination activeTasks.size = " + activeTasks.size());
+        for (Future future : activeTasks) {
+            if(future!=null) {
+                future.get(10L, TimeUnit.SECONDS);
+            }
+        }
+        log.debug("All tasks are finished");
+//        cleaner.run();
+//        if(activeTasks.isEmpty()){
+//            return;
+//        }
+//        while(!activeTasks.isEmpty()){
+//            log.debug("activeTasks.size = " + activeTasks.size());
+//            Thread.sleep(activeTasks.size()*1000);
+//            log.debug("waiting termination ....");
+//        }
+    }
+
     public SortedSet<Order> getBuyOrders() {
+        log.debug("getBuyOrders() returns " + buyOrders.size() + " elements");
         return buyOrders;
     }
 
     public SortedSet<Order> getSellOrders() {
+        log.debug("getSellOrders() returns " + sellOrders.size() + " elements");
         return sellOrders;
     }
 
@@ -134,12 +163,6 @@ public class SeparatedOrderMatcher {
                 .max(new PriceComparator()).orElse(null);
     }
 
-    public void awaitTermination() throws InterruptedException {
-        while(!activeTasks.isEmpty()){
-            Thread.sleep(activeTasks.size());
-            log.debug("waiting termination ....");
-        }
-    }
 
 //    public static void main(String[] args) {
 //        BigDecimal sellPrice = new BigDecimal(123.4567).setScale(5, BigDecimal.ROUND_HALF_UP);
