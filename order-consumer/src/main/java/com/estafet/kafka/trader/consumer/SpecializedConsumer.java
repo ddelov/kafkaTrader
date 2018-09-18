@@ -49,19 +49,6 @@ public class SpecializedConsumer {
         consumer = new KafkaConsumer<>(getConsumerProperties(groupId));
         partition = new TopicPartition(TOPIC_INCOMING_ORDERS + symbol, operation.ordinal());
         consumer.assign(Arrays.asList(partition));
-//        Properties props = new Properties();
-////        props.put(StreamsConfig.APPLICATION_ID_CONFIG, Thread.currentThread().getName() + transIdSeq.getAndIncrement());
-//        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, TRADER_SERVERS);
-//        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-//        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-//        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-//        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-//        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-//        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-////        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StringDeserializer.class);
-//        consumer = new KafkaConsumer<>(props);
-//        final Pattern compile = Pattern.compile("incoming-ordersAAPL"/*TOPIC_INCOMING_ORDERS + ".*"*/);
-//        consumer.subscribe(compile);
     }
 
     public void infinitePoll(){
@@ -74,15 +61,6 @@ public class SpecializedConsumer {
                 log.debug(count > 0 ? "Found " + count +
                         (count == 1 ? " new record." : " new records.")
                         : "No new records");
-//                for (TopicPartition partition : records.partitions()) {
-//                    partition.equals()
-//                    List<ConsumerRecord<String, String>> partitionRecords = records.records(partition);
-//                    for (ConsumerRecord<String, String> record : partitionRecords) {
-//                        System.out.println(record.offset() + ": " + record.value());
-//                    }
-//                    long lastOffset = partitionRecords.get(partitionRecords.size() - 1).offset();
-//                    consumer.commitSync(Collections.singletonMap(partition, new OffsetAndMetadata(lastOffset + 1)));
-//                }
                 final long startN = System.nanoTime();
                 for (ConsumerRecord<String, String> record : records) {
                     final String transId = Thread.currentThread().getName() + transIdSeq.getAndIncrement();
@@ -163,25 +141,16 @@ public class SpecializedConsumer {
                 }
             }
             log.info("Consumer finished. Unmatched orders are back to Kafka");
-//            final String ordersTable = unmatched.printOrdersTable();
-//            log.info(ordersTable);
 
         }));
         final SpecializedConsumer buyConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.BUY);
         final SpecializedConsumer sellConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.SELL);
 
-//        buyConsumer.infinitePoll();
         final ForkJoinTask<?> subB = ForkJoinPool.commonPool().submit(buyConsumer::infinitePoll);
         final ForkJoinTask<?> subS = ForkJoinPool.commonPool().submit(sellConsumer::infinitePoll);
         subB.get();
         subS.get();
         log.info("Program finished");
-//        ForkJoinPool.commonPool().submit(sellConsumer::infinitePoll);
-
-//        KafkaConsumer<String, String> sellConsumer = new KafkaConsumer<>(getConsumerProperties());
-//        TopicPartition sellPart = new TopicPartition(TOPIC_INCOMING_ORDERS + symbol, OrderOperation.SELL.ordinal());
-//        sellConsumer.assign(Arrays.asList(sellPart));
-
 
     }
 

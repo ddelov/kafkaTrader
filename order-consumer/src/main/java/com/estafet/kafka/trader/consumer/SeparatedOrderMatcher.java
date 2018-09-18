@@ -9,8 +9,10 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.List;
+import java.util.SortedSet;
 import java.util.concurrent.*;
+import java.util.stream.Stream;
 
 import static com.estafet.kafka.trader.base.Constants.getOrderId;
 
@@ -69,27 +71,25 @@ public class SeparatedOrderMatcher {
     }
 
     public SortedSet<Order> getBuyOrders() {
-        log.debug("getBuyOrders() returns " + buyOrders.size() + " elements");
         return buyOrders;
     }
 
     public SortedSet<Order> getSellOrders() {
-        log.debug("getSellOrders() returns " + sellOrders.size() + " elements");
         return sellOrders;
     }
 
-    private void match(Order remaining) {
-        if (remaining != null) {
-            if (remaining.operation == OrderOperation.BUY) {
-                matchBuy(remaining);
+    protected void match(Order order) {
+        if (order != null) {
+            if (order.operation == OrderOperation.BUY) {
+                matchBuy(order);
             } else {
-                matchSell(remaining);
+                matchSell(order);
             }
         }
     }
 
     // TODO check if additional synchronization is needed
-    private void match(final Order buyOrder, final Order sellOrder) /*throws OrderException*/ {
+    protected void match(final Order buyOrder, final Order sellOrder) /*throws OrderException*/ {
         try {
             check(buyOrder);
             check(sellOrder);
@@ -97,8 +97,8 @@ public class SeparatedOrderMatcher {
             log.warn(ignored.getMessage());
             return;
         }
-        buyOrders.remove(buyOrder);
-        sellOrders.remove(sellOrder);
+        getBuyOrders().remove(buyOrder);
+        getSellOrders().remove(sellOrder);
         Order remaining = null;
         if (buyOrder.quantity == sellOrder.quantity) {
             log.debug("Buy and sell quantity matches. No remaining shares left for a new order");
@@ -107,14 +107,14 @@ public class SeparatedOrderMatcher {
             remaining = new Order(getOrderId(), buyOrder.userId, buyOrder.symbol,
                     OrderOperation.BUY, buyOrder.quantity - sellOrder.quantity, buyOrder.price, buyOrder.orderType,
                     buyOrder.from, buyOrder.validTo, buyOrder.id);
-            buyOrders.add(remaining);
+            getBuyOrders().add(remaining);
         } else {
             //remain new Sell order
             remaining = new Order(getOrderId(), sellOrder.userId, sellOrder.symbol,
                     OrderOperation.SELL, sellOrder.quantity - buyOrder.quantity, sellOrder.price,
                     sellOrder.orderType,
                     sellOrder.from, sellOrder.validTo, sellOrder.id);
-            sellOrders.add(remaining);
+            getSellOrders().add(remaining);
         }
         int numberOfShares = Math.min(buyOrder.quantity, sellOrder.quantity);
         FinishedDeal finishedDeal = new FinishedDeal(buyOrder.id, sellOrder.id, numberOfShares, remaining.price,
@@ -125,12 +125,16 @@ public class SeparatedOrderMatcher {
     }
 
     private void check(final Order order) throws OrderException {
-        //TODO validate buyer/seller
+        //TODO validate buyer has enough available money to cover the shares costs
+        //TODO validate seller owns enough shares for the transaction
         return;
     }
 
-    private void matchBuy(Order buyOrder) {
-        buyOrders.add(buyOrder);
+    protected void matchBuy(Order buyOrder) {
+        if(buyOrder==null){
+            return;
+        }
+        getBuyOrders().add(buyOrder);
         Order sellOrder = findMaxSeller(buyOrder.price);
         if (sellOrder == null) {
             log.debug("missing matching ask price for buy order " + buyOrder.id);
@@ -139,8 +143,11 @@ public class SeparatedOrderMatcher {
         match(buyOrder, sellOrder);
     }
 
-    private void matchSell(Order sellOrder) {
-        sellOrders.add(sellOrder);
+    protected void matchSell(Order sellOrder) {
+        if(sellOrder==null){
+            return;
+        }
+        getSellOrders().add(sellOrder);
         Order buyOrder = findMinBuyer(sellOrder.price);
         if (buyOrder == null) {
             log.debug("missing matching bid price for sell order " + sellOrder.id);
@@ -150,15 +157,23 @@ public class SeparatedOrderMatcher {
 
     }
 
-    private Order findMinBuyer(BigDecimal price) {
-        return buyOrders.stream()
-                .filter((ord) -> ord.price.compareTo(price) >= 0)
-                .min(new PriceComparator()).orElse(null);
+    protected Order findMinBuyer(BigDecimal price) {
+        if(price==null){
+            return null;
+        }
+        final Stream<Order> stream = getBuyOrders().stream().filter((ord) -> ord.price.compareTo(price) >= 0);
+        final PriceComparator priceComparator = new PriceComparator();
+//        stream.sorted(priceComparator).forEach(System.out::println);
+        final Order order = stream.min(priceComparator).orElse(null);
+        return order;
     }
 
 
-    private Order findMaxSeller(BigDecimal price) {
-        return sellOrders.stream()
+    protected Order findMaxSeller(BigDecimal price) {
+        if(price==null){
+            return null;
+        }
+        return getSellOrders().stream()
                 .filter((ord) -> ord.price.compareTo(price) <= 0)
                 .max(new PriceComparator()).orElse(null);
     }
