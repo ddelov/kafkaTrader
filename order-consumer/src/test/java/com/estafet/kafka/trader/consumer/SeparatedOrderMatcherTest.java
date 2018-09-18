@@ -44,9 +44,8 @@ public class SeparatedOrderMatcherTest {
 
     @Before
     public void setUp() {
-//
-//        matcher.buyOrders.add(order);
-//        matcher.findMinBuyer()
+        matcher.getBuyOrders().clear();
+        matcher.getSellOrders().clear();
     }
 
     @Test
@@ -78,15 +77,40 @@ public class SeparatedOrderMatcherTest {
         assertThat(matcher.findMaxSeller(new BigDecimal(166.444)), is(sOrderTen));
     }
 
-//    @Test
-//    public void matchBuy(){
-//        class MockSeparatedOrderMatcher extends SeparatedOrderMatcher{
-//
-//        }
-//        mockMatcher.buyOrders=mockOrders;
-//        mockMatcher.matchBuy(null);
-//
-//        verifyNoMoreInteractions(mockOrders);
-//    }
+    @Test
+    public void matchOne2One(){
+        matcher.getBuyOrders().add(bOrderOne);
+        matcher.getBuyOrders().add(bOrderTen);
+        matcher.getSellOrders().add(sOrderOne);
+        matcher.getSellOrders().add(sOrderTen);
+
+        assertThat(matcher.getBuyOrders().size(), is(2));
+        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
+        assertThat(matcher.getBuyOrders().contains(bOrderTen), is(true));
+        assertThat(matcher.getSellOrders().size(), is(2));
+        assertThat(matcher.getSellOrders().contains(sOrderTen), is(true));
+        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
+
+        matcher.match(bOrderTen, sOrderTen);
+        assertThat(matcher.getBuyOrders().size(), is(2));
+        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
+        assertThat(matcher.getBuyOrders().contains(bOrderTen), is(false));
+        matcher.getBuyOrders().remove(bOrderOne);
+        Order remaining = matcher.getBuyOrders().first();
+        assertThat(remaining.price, is(sOrderTen.price));
+        assertThat(remaining.parentOrderId, is(bOrderTen.id));
+        assertThat(remaining.quantity, is(13));
+        assertThat(remaining.orderType, is(OrderType.Limit));
+        assertThat(remaining.operation, is(OrderOperation.BUY));
+        assertThat(remaining.userId, is(bOrderTen.userId));
+        assertThat(remaining.from, is(bOrderTen.from));
+        assertThat(remaining.symbol, is(bOrderTen.symbol));
+        assertThat(remaining.orderValidity, is(bOrderTen.orderValidity));
+
+        assertThat(matcher.getSellOrders().size(), is(1));
+        assertThat(matcher.getSellOrders().contains(sOrderTen), is(false));
+        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
+
+    }
 
 }
