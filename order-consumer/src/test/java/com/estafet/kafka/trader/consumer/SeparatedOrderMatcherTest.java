@@ -3,7 +3,6 @@ package com.estafet.kafka.trader.consumer;
 import com.estafet.kafka.trader.base.Order;
 import com.estafet.kafka.trader.base.OrderOperation;
 import com.estafet.kafka.trader.base.OrderType;
-import com.estafet.kafka.trader.base.comparators.PriceComparator;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -12,7 +11,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.math.BigDecimal;
 import java.util.SortedSet;
-import java.util.TreeSet;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNull;
@@ -52,11 +50,9 @@ public class SeparatedOrderMatcherTest {
     public void findMinBuyerNoPrice(){
         assertNull(matcher.findMinBuyer(new BigDecimal(23.56)));
 
-        final SortedSet<Order> orders = new TreeSet<>(new PriceComparator());
-        orders.add(bOrderOne);
-        orders.add(bOrderTen);
-        matcher.getBuyOrders().addAll(orders);
-//        doReturn(orders). when(mockMatcher.getBuyOrders());
+        matcher.getBuyOrders().add(bOrderOne);
+        matcher.getBuyOrders().add(bOrderTen);
+
         assertNull(matcher.findMinBuyer(null));
         assertThat(matcher.findMinBuyer(new BigDecimal(0.56)), is(bOrderOne));
         assertThat(matcher.findMinBuyer(BigDecimal.ONE), is(bOrderOne));
@@ -79,23 +75,23 @@ public class SeparatedOrderMatcherTest {
 
     @Test
     public void matchOne2One(){
-        matcher.getBuyOrders().add(bOrderOne);
+//        matcher.getBuyOrders().add(bOrderOne);
         matcher.getBuyOrders().add(bOrderTen);
-        matcher.getSellOrders().add(sOrderOne);
+//        matcher.getSellOrders().add(sOrderOne);
         matcher.getSellOrders().add(sOrderTen);
 
-        assertThat(matcher.getBuyOrders().size(), is(2));
-        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
+        assertThat(matcher.getBuyOrders().size(), is(1));
+//        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
         assertThat(matcher.getBuyOrders().contains(bOrderTen), is(true));
-        assertThat(matcher.getSellOrders().size(), is(2));
+        assertThat(matcher.getSellOrders().size(), is(1));
         assertThat(matcher.getSellOrders().contains(sOrderTen), is(true));
-        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
+//        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
 
         matcher.match(bOrderTen, sOrderTen);
-        assertThat(matcher.getBuyOrders().size(), is(2));
-        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
-        assertThat(matcher.getBuyOrders().contains(bOrderTen), is(false));
-        matcher.getBuyOrders().remove(bOrderOne);
+        assertThat(matcher.getBuyOrders().size(), is(1));
+//        assertThat(matcher.getBuyOrders().contains(bOrderOne), is(true));
+//        assertThat(matcher.getBuyOrders().contains(bOrderTen), is(false));
+//        matcher.getBuyOrders().remove(bOrderOne);
         Order remaining = matcher.getBuyOrders().first();
         assertThat(remaining.price, is(sOrderTen.price));
         assertThat(remaining.parentOrderId, is(bOrderTen.id));
@@ -107,9 +103,9 @@ public class SeparatedOrderMatcherTest {
         assertThat(remaining.symbol, is(bOrderTen.symbol));
         assertThat(remaining.orderValidity, is(bOrderTen.orderValidity));
 
-        assertThat(matcher.getSellOrders().size(), is(1));
-        assertThat(matcher.getSellOrders().contains(sOrderTen), is(false));
-        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
+        assertThat(matcher.getSellOrders().size(), is(0));
+//        assertThat(matcher.getSellOrders().contains(sOrderTen), is(false));
+//        assertThat(matcher.getSellOrders().contains(sOrderOne), is(true));
 
     }
 

@@ -162,7 +162,7 @@ public class SeparatedOrderMatcher {
             return null;
         }
         final Stream<Order> stream = getBuyOrders().stream().filter((ord) -> ord.price.compareTo(price) >= 0);
-        final PriceComparator priceComparator = new PriceComparator();
+//        final PriceComparator priceComparator = new PriceComparator();
 //        stream.sorted(priceComparator).forEach(System.out::println);
         final Order order = stream.min(priceComparator).orElse(null);
         return order;
@@ -175,7 +175,7 @@ public class SeparatedOrderMatcher {
         }
         return getSellOrders().stream()
                 .filter((ord) -> ord.price.compareTo(price) <= 0)
-                .max(new PriceComparator()).orElse(null);
+                .max(priceComparator).orElse(null);
     }
 
 
