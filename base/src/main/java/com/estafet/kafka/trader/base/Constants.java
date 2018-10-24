@@ -22,6 +22,7 @@ public final class Constants {
     public static final List<String> SHARES_LIST = new ArrayList<>(Arrays.asList(SHARES));
     public static final BigDecimal PRICE_MAX_VALUE = BigDecimal.valueOf(Long.MAX_VALUE);
     public static final long POLL_EVERY_X_SECONDS = 17l;
+    public static final int PARTITIONS_IN_TOPIC = 20;
 
     private static final AtomicLong orderSeq = new AtomicLong();
     private static final AtomicLong userSeq = new AtomicLong();
@@ -59,7 +60,7 @@ public final class Constants {
         props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, OrderSer.class);//"org.apache.kafka.common.serialization
-        props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "com.estafet.kafka.trader.base.TradeOperationPartitioner");
+        props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "com.estafet.kafka.trader.base.OrderPartitioner20");
 
         return props;
     }

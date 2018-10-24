@@ -17,10 +17,7 @@ import org.apache.log4j.PropertyConfigurator;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
@@ -44,10 +41,10 @@ public class SpecializedConsumer {
     private static Logger log = Logger.getLogger(SpecializedConsumer.class);
 
     public SpecializedConsumer(String groupId, SeparatedOrderMatcher orderMatcher, String symbol,
-                               OrderOperation operation) {
+                               OrderOperation operation, int offset) {
         this.orderMatcher = orderMatcher;
         consumer = new KafkaConsumer<>(getConsumerProperties(groupId));
-        partition = new TopicPartition(TOPIC_INCOMING_ORDERS + symbol, operation.ordinal());
+        partition = new TopicPartition(TOPIC_INCOMING_ORDERS + symbol, PARTITIONS_IN_TOPIC/2* operation.ordinal() + offset);
         consumer.assign(Arrays.asList(partition));
     }
 
@@ -143,13 +140,20 @@ public class SpecializedConsumer {
             log.info("Consumer finished. Unmatched orders are back to Kafka");
 
         }));
-        final SpecializedConsumer buyConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.BUY);
-        final SpecializedConsumer sellConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.SELL);
+        List<ForkJoinTask<?>>  consumersTasks = new ArrayList<>(PARTITIONS_IN_TOPIC);
+        for (int offset=0;offset<PARTITIONS_IN_TOPIC;++offset) {
+            final SpecializedConsumer buyConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.BUY, offset);
+            final SpecializedConsumer sellConsumer = new SpecializedConsumer(groupId, matcher, symbol, OrderOperation.SELL, offset);
 
-        final ForkJoinTask<?> subB = ForkJoinPool.commonPool().submit(buyConsumer::infinitePoll);
-        final ForkJoinTask<?> subS = ForkJoinPool.commonPool().submit(sellConsumer::infinitePoll);
-        subB.get();
-        subS.get();
+            consumersTasks.add(ForkJoinPool.commonPool().submit(buyConsumer::infinitePoll));
+            consumersTasks.add(ForkJoinPool.commonPool().submit(sellConsumer::infinitePoll));
+
+        }
+        for (ForkJoinTask<?> task : consumersTasks) {
+            task.get();
+        }
+//        subB.get();
+//        subS.get();
         log.info("Program finished");
 
     }
